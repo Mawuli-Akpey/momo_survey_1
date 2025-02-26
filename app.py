@@ -32,9 +32,9 @@ df['end'] = pd.to_datetime(df['end'], errors='coerce')
 enumerator_mapping = {
     "collect:7McKQdhzVD5lVwAt": "Shadrach",
     "collect:zOVGOiuiKdhvkEFf": "Hetty",
-    "collect:NYXsL466TQLkROha": "CharlesA",
+    "collect:NYXsL466TQLkROha": "Charles Agyarko",
     "collect:xdUQW0gruIuCxHeK": "Patience",
-    "collect:hglxKjNr4BVzkskU": "CharlesB"
+    "collect:hglxKjNr4BVzkskU": "Charles Aidoo"
 }
 
 df['Enumerator'] = df['deviceid'].map(enumerator_mapping)
