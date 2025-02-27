@@ -132,3 +132,11 @@ plot_annotated_bar(decline_count, "Frequency of Declined Transaction in Past 7 d
 # Bar Chart: Count of " If the MNO provided more clarification regarding the computation of your cash-in commission, how would it affect your happiness/satisfaction with your work?"
 satisfaction_count = df_filtered[" If the MNO provided more clarification regarding the computation of your cash-in commission, how would it affect your happiness/satisfaction with your work?"].value_counts()
 plot_annotated_bar(satisfaction_count, "Satisfation Rating of Cash-in Computation Clarification")
+
+# Bar Chart: Count of "Do you believe it is good to post tariffs to improve transparency?"
+transparency = df_filtered["Do you believe it is good to post tariffs to improve transparency?"].value_counts()
+plot_annotated_bar(transparency, "Thoughts on Transparency")
+
+# Bar Chart: Count of "Does receiving lower than expected cash-in commission encourage you to charge higher tariffs?"
+tariff1 = df_filtered["Does receiving lower than expected cash-in commission encourage you to charge higher tariffs?"].value_counts()
+plot_annotated_bar(tariff1, "Ho Cash-in Commission Affects Charges on Tarriffs")
