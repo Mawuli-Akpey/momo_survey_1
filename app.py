@@ -139,4 +139,4 @@ plot_annotated_bar(transparency, "Thoughts on Transparency")
 
 # Bar Chart: Count of "Does receiving lower than expected cash-in commission encourage you to charge higher tariffs?"
 tariff1 = df_filtered["Does receiving lower than expected cash-in commission encourage you to charge higher tariffs?"].value_counts()
-plot_annotated_bar(tariff1, "Ho Cash-in Commission Affects Charges on Tarriffs")
+plot_annotated_bar(tariff1, "How Cash-in Commission Affects Charges on Tarriffs")
