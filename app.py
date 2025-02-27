@@ -123,3 +123,12 @@ def plot_distribution(column, title):
 # Distribution of Age
 plot_distribution("How old are you? (In years)", "Distribution of Age")
 
+plot_distribution("What was the total MOMO business income earned during a typical month after paying all expenses (including wages of employees), but not including any income you [owner] paid yourself? ", "Distribution of Income")
+
+# Bar Chart: Count of "Consider the last 7 days/ last week: How often did you decline a customer’s transaction due to insufficient liquidity on your e-credit or cash-in-hand? "
+decline_count = df_filtered["Consider the last 7 days/ last week: How often did you decline a customer’s transaction due to insufficient liquidity on your e-credit or cash-in-hand? "].value_counts()
+plot_annotated_bar(decline_count, "Frequency of Declined Transaction in Past 7 days")
+
+# Bar Chart: Count of " If the MNO provided more clarification regarding the computation of your cash-in commission, how would it affect your happiness/satisfaction with your work?"
+satisfaction_count = df_filtered[" If the MNO provided more clarification regarding the computation of your cash-in commission, how would it affect your happiness/satisfaction with your work?"].value_counts()
+plot_annotated_bar(satisfaction_count, "Satisfation Rating of Cash-in Computation Clarification")
