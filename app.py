@@ -165,7 +165,7 @@ if not df_filtered.empty:
         tooltip=tooltip
     )
 
-    st.subheader("✈ Enumerator Flight Paths with Order Numbers")
+    st.subheader("Enumerator Paths in Order")
     st.pydeck_chart(deck)
 else:
     st.warning("No valid geolocation data available for mapping routes.")
