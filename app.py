@@ -2,9 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-import seaborn as sns
-import matplotlib.pyplot as plt
+import pydeck as pdk
 import io
 
 # Set Streamlit page configuration
@@ -25,8 +23,9 @@ else:
     st.stop()
 
 # Convert start and end times to datetime
-df['start'] = pd.to_datetime(df['start'], errors='coerce')
-df['end'] = pd.to_datetime(df['end'], errors='coerce')
+# Ensure correct UTC parsing
+df['start'] = pd.to_datetime(df['start'], utc=True, errors='coerce')
+df['end'] = pd.to_datetime(df['end'], utc=True, errors='coerce')
 
 # Enumerator mapping
 enumerator_mapping = {
@@ -44,30 +43,23 @@ st.sidebar.header("📅 Filter by Date")
 start_date = st.sidebar.date_input("Start Date", df['start'].min().date())
 end_date = st.sidebar.date_input("End Date", df['end'].max().date())
 
-# Filter DataFrame by date range
 df_filtered = df[(df['start'].dt.date >= start_date) & (df['end'].dt.date <= end_date)]
 
-# Calculate Form Completion Time
+# Enumerator filter
+enumerator_options = df_filtered['Enumerator'].dropna().unique()
+selected_enumerator = st.sidebar.selectbox("Select Enumerator", options=['All'] + list(enumerator_options))
+
+if selected_enumerator != 'All':
+    df_filtered = df_filtered[df_filtered['Enumerator'] == selected_enumerator]
+
+# Calculate form completion time
 df_filtered['completion_time'] = (df_filtered['end'] - df_filtered['start']).dt.total_seconds() / 60
 
-# Key Statistics
-total_submissions = len(df_filtered)
-total_men = df_filtered[df_filtered['Sex of Agent'] == 'Male'].shape[0]
-total_women = df_filtered[df_filtered['Sex of Agent'] == 'Female'].shape[0]
-avg_completion_time = df_filtered['completion_time'].mean()
+#########################
+# 1) Plotly Scatter Map #
+#########################
 
-# Geolocation Data
 geo_df = df_filtered.dropna(subset=['_start-geopoint_latitude', '_start-geopoint_longitude'])
-
-# Display Key Metrics in One Row
-col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("📄 Total Submissions", total_submissions)
-col2.metric("👨 Total Men", total_men)
-col3.metric("👩 Total Women", total_women)
-col4.metric("⏳ Avg Completion Time (mins)", round(avg_completion_time, 2))
-col5.metric("🗺️ Entries with Geolocation", len(geo_df))
-
-# Geolocation Mapping
 if not geo_df.empty:
     fig_map = px.scatter_mapbox(
         geo_df,
@@ -76,13 +68,114 @@ if not geo_df.empty:
         hover_name="Enumerator",
         title="Geolocation of Survey Responses by Enumerator",
         mapbox_style="open-street-map",
-        zoom=10,
+        zoom=12,  # Adjust zoom level for better visibility
         color="Enumerator",
         size_max=15
     )
+    st.subheader("📍 Enumerator Locations")
     st.plotly_chart(fig_map, use_container_width=True)
 else:
     st.warning("No geolocation data available for mapping.")
+
+#########################################
+# 2) PyDeck Flight PathLayer + Numbered Annotations #
+#########################################
+
+if not df_filtered.empty:
+    route_data = df_filtered.dropna(subset=["_start-geopoint_latitude", "_start-geopoint_longitude"])
+    route_data = route_data.sort_values(by=['Enumerator','start']).reset_index(drop=True)
+
+    layers = []
+
+    # Color dictionary for enumerators
+    color_map = {
+        "Shadrach": [255, 0, 0],
+        "Hetty": [0, 255, 0],
+        "Charles Agyarko": [0, 0, 255],
+        "Patience": [255, 165, 0],
+        "Charles Aidoo": [139, 0, 139]
+    }
+
+    annotation_data = []
+
+    for enumerator, group in route_data.groupby('Enumerator'):
+        group = group.sort_values('start').reset_index(drop=True)
+
+        if len(group) > 1:
+            arc_data = [{
+                "start": [group.iloc[i]['_start-geopoint_longitude'], group.iloc[i]['_start-geopoint_latitude']],
+                "end": [group.iloc[i+1]['_start-geopoint_longitude'], group.iloc[i+1]['_start-geopoint_latitude']],
+                "Enumerator": enumerator
+            } for i in range(len(group) - 1)]
+
+            arc_layer = pdk.Layer(
+                "ArcLayer",
+                data=arc_data,
+                get_source_position="start",
+                get_target_position="end",
+                get_source_color=f"[{color_map.get(enumerator,[200,30,0])[0]}, {color_map.get(enumerator,[200,30,0])[1]}, {color_map.get(enumerator,[200,30,0])[2]}, 160]",
+                get_target_color=f"[{color_map.get(enumerator,[200,30,0])[0]}, {color_map.get(enumerator,[200,30,0])[1]}, {color_map.get(enumerator,[200,30,0])[2]}, 160]",
+                width_min_pixels=3,
+                pickable=True
+            )
+            layers.append(arc_layer)
+
+        for i, row in group.iterrows():
+            annotation_data.append({
+                "Enumerator": enumerator,
+                "order": str(i+1),
+                "lat": row['_start-geopoint_latitude'],
+                "lon": row['_start-geopoint_longitude']
+            })
+
+    text_layer = pdk.Layer(
+        "TextLayer",
+        data=annotation_data,
+        get_position=["lon", "lat"],  # Correct position format
+        get_text="order",
+        get_color="[0, 0, 0]",  # Black text for visibility
+        get_size=18,  # Bigger text for clarity
+        get_alignment_baseline="center",
+        get_anchor="middle",
+        pickable=True
+    )
+    layers.append(text_layer)
+
+    tooltip = {
+        "html": """
+<b>Enumerator:</b> {Enumerator}<br/>
+<b>Order:</b> {order}
+""",
+        "style": {"backgroundColor": "steelblue", "color": "white"}
+    }
+
+    view_state = pdk.ViewState(
+        latitude=route_data['_start-geopoint_latitude'].mean(),
+        longitude=route_data['_start-geopoint_longitude'].mean(),
+        zoom=12,  # Adjust zoom level for better visibility
+        pitch=50
+    )
+
+    deck = pdk.Deck(
+        map_style="mapbox://styles/mapbox/light-v9",
+        initial_view_state=view_state,
+        layers=layers,
+        tooltip=tooltip
+    )
+
+    st.subheader("✈ Enumerator Flight Paths with Order Numbers")
+    st.pydeck_chart(deck)
+else:
+    st.warning("No valid geolocation data available for mapping routes.")
+
+
+
+
+
+
+
+
+
 
 # Function to create annotated bar charts
 def plot_annotated_bar(data, title):
