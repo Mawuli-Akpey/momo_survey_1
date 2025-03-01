@@ -67,8 +67,8 @@ if not geo_df.empty:
         lon="_start-geopoint_longitude",
         hover_name="Enumerator",
         title="Geolocation of Survey Responses by Enumerator",
-        mapbox_style="open-street-map",
-        zoom=12,  # Adjust zoom level for better visibility
+        mapbox_style="carto-positron",  # Updated base map to match Plotly's style
+        zoom=12,
         color="Enumerator",
         size_max=15
     )
@@ -98,14 +98,15 @@ if not df_filtered.empty:
 
     annotation_data = []
 
-    for enumerator, group in route_data.groupby('Enumerator'):
+    for (enumerator, date), group in route_data.groupby(['Enumerator', route_data['start'].dt.date]):
         group = group.sort_values('start').reset_index(drop=True)
 
         if len(group) > 1:
             arc_data = [{
                 "start": [group.iloc[i]['_start-geopoint_longitude'], group.iloc[i]['_start-geopoint_latitude']],
                 "end": [group.iloc[i+1]['_start-geopoint_longitude'], group.iloc[i+1]['_start-geopoint_latitude']],
-                "Enumerator": enumerator
+                "Enumerator": enumerator,
+                "Date": str(date)
             } for i in range(len(group) - 1)]
 
             arc_layer = pdk.Layer(
@@ -123,6 +124,7 @@ if not df_filtered.empty:
         for i, row in group.iterrows():
             annotation_data.append({
                 "Enumerator": enumerator,
+                "Date": str(date),
                 "order": str(i+1),
                 "lat": row['_start-geopoint_latitude'],
                 "lon": row['_start-geopoint_longitude']
@@ -131,10 +133,10 @@ if not df_filtered.empty:
     text_layer = pdk.Layer(
         "TextLayer",
         data=annotation_data,
-        get_position=["lon", "lat"],  # Correct position format
+        get_position=["lon", "lat"],
         get_text="order",
-        get_color="[0, 0, 0]",  # Black text for visibility
-        get_size=18,  # Bigger text for clarity
+        get_color="[0, 0, 0]",  # Set order numbers to dark color for better visibility
+        get_size=16,
         get_alignment_baseline="center",
         get_anchor="middle",
         pickable=True
@@ -144,7 +146,7 @@ if not df_filtered.empty:
     tooltip = {
         "html": """
 <b>Enumerator:</b> {Enumerator}<br/>
-<b>Order:</b> {order}
+<b>Date:</b> {Date}<br/>
 """,
         "style": {"backgroundColor": "steelblue", "color": "white"}
     }
@@ -152,12 +154,12 @@ if not df_filtered.empty:
     view_state = pdk.ViewState(
         latitude=route_data['_start-geopoint_latitude'].mean(),
         longitude=route_data['_start-geopoint_longitude'].mean(),
-        zoom=12,  # Adjust zoom level for better visibility
+        zoom=12,
         pitch=50
     )
 
     deck = pdk.Deck(
-        map_style="mapbox://styles/mapbox/light-v9",
+        map_style="mapbox://styles/mapbox/light-v9",  # Updated PyDeck map style to match Plotly
         initial_view_state=view_state,
         layers=layers,
         tooltip=tooltip
@@ -167,6 +169,7 @@ if not df_filtered.empty:
     st.pydeck_chart(deck)
 else:
     st.warning("No valid geolocation data available for mapping routes.")
+
 
 
 
